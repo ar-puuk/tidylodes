@@ -6,11 +6,11 @@
 # 1. Workplace Area Characteristics (WAC) functions -----------------------
 
 ## Function 1. Grabbing and cleaning WAC data for one state, one year e.g. get_wac_data("al", "2012")
-get_wac_data <- function(state_name, year) {
+get_wac_data <- function(state_name, year, geometry = FALSE) {
 
   ## Stage One - Extracting Data from LODES
   dl_file <- paste0(state_name, "_wac_S000_JT00_", year, ".csv.gz")
-  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/wac/", dl_file), dl_file)
+  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES8/", state_name, "/wac/", dl_file), dl_file)
   R.utils::gunzip(dl_file)
   temp <- data.table::fread(paste0(state_name, "_wac_S000_JT00_", year, ".csv"))
   rm(dl_file)
@@ -36,20 +36,20 @@ get_wac_data <- function(state_name, year) {
 
   ## Stage Three - Joining the lookup
   dl_file_lookup <- paste0(state_name, "_xwalk.csv.gz")
-  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/", dl_file_lookup), dl_file_lookup)
+  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES8/", state_name, "/", dl_file_lookup), dl_file_lookup)
   R.utils::gunzip(dl_file_lookup)
   temp_lookup <- data.table::fread(paste0(state_name, "_xwalk.csv"))
   file.remove(paste0(state_name, "_xwalk.csv"))
 
 
   ## Stage Four - Processing the lookup
-  temp_lookup <- temp_lookup[, c("tabblk2010", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
+  temp_lookup <- temp_lookup[, c("tabblk2020", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
   temp_lookup[, ] <- lapply(temp_lookup[, ], as.character)
-  temp_lookup$tabblk2010 <- stringr::str_pad(temp_lookup$tabblk2010, width = 15, side = 'left', pad = 0)
-  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2010, 1, 2), CountyID = substr(tabblk2010, 3, 5),
-                           TractID = substr(tabblk2010, 6, 11), BlockGroupID = substr(tabblk2010, 12, 12),
-                           CensusBlockID = substr(tabblk2010, 13, 15))
-  temp_lookup <- temp_lookup[, c("tabblk2010", "StateID", "stname", "CountyID", "ctyname",
+  temp_lookup$tabblk2020 <- stringr::str_pad(temp_lookup$tabblk2020, width = 15, side = 'left', pad = 0)
+  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2020, 1, 2), CountyID = substr(tabblk2020, 3, 5),
+                           TractID = substr(tabblk2020, 6, 11), BlockGroupID = substr(tabblk2020, 12, 12),
+                           CensusBlockID = substr(tabblk2020, 13, 15))
+  temp_lookup <- temp_lookup[, c("tabblk2020", "StateID", "stname", "CountyID", "ctyname",
                                  "TractID", "trctname", "BlockGroupID", "bgrpname")]
   colnames(temp_lookup) <- c("Census_Block_Code", "StateID", "StateName", "CountyID", "CountyName",
                              "TractID", "TractName", "BlockGroupID", "BlockGroupName")
@@ -68,7 +68,12 @@ get_wac_data <- function(state_name, year) {
   geog <- temp_merge[, 1:11]
   db <- cbind(geog, cols)
 
-  return(db)
+  if (geometry) {
+    spatial_data <- get_wac_spatial(db)
+    return(spatial_data)
+  } else {
+    return(db)
+  }
 }
 
 ###################################################################################################################
@@ -134,11 +139,11 @@ get_wac_spatial <- function(df) {
 # 2. Residence Area Characteristics (RAC) Functions -----------------------
 
 ## Function 2. Grabbing and cleaning RAC data for one state, one year - e.g. get_rac_data("de", "2012")
-get_rac_data <- function(state_name, year) {
+get_rac_data <- function(state_name, year, geometry = FALSE) {
 
   ## Stage One - Extracting Data from LODES
   dl_file <- paste0(state_name, "_rac_S000_JT00_", year, ".csv.gz")
-  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/rac/", dl_file), dl_file)
+  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES8/", state_name, "/rac/", dl_file), dl_file)
   R.utils::gunzip(dl_file)
   temp <- data.table::fread(paste0(state_name, "_rac_S000_JT00_", year, ".csv"))
   rm(dl_file)
@@ -163,19 +168,23 @@ get_rac_data <- function(state_name, year) {
 
   ## Stage Three - Joining the lookup
   dl_file_lookup <- paste0(state_name, "_xwalk.csv.gz")
-  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/", dl_file_lookup), dl_file_lookup)
-  R.utils::gunzip(dl_file_lookup)
-  temp_lookup <- data.table::fread(paste0(state_name, "_xwalk.csv"))
-  file.remove(paste0(state_name, "_xwalk.csv"))
+  if (download_geometry) {
+    download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES8/", state_name, "/", dl_file_lookup), dl_file_lookup)
+    R.utils::gunzip(dl_file_lookup)
+    temp_lookup <- data.table::fread(paste0(state_name, "_xwalk.csv"))
+    file.remove(paste0(state_name, "_xwalk.csv"))
+  } else {
+    temp_lookup <- data.table::fread(paste0(state_name, "_xwalk.csv"))
+  }
 
   ## Stage Four - Processing the lookup
-  temp_lookup <- temp_lookup[, c("tabblk2010", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
+  temp_lookup <- temp_lookup[, c("tabblk2020", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
   temp_lookup[, ] <- lapply(temp_lookup[, ], as.character)
-  temp_lookup$tabblk2010 <- stringr::str_pad(temp_lookup$tabblk2010, width = 15, side = 'left', pad = 0)
-  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2010, 1, 2), CountyID = substr(tabblk2010, 3, 5),
-                           TractID = substr(tabblk2010, 6, 11), BlockGroupID = substr(tabblk2010, 12, 12),
-                           CensusBlockID = substr(tabblk2010, 13, 15))
-  temp_lookup <- temp_lookup[, c("tabblk2010", "StateID", "stname", "CountyID", "ctyname",
+  temp_lookup$tabblk2020 <- stringr::str_pad(temp_lookup$tabblk2020, width = 15, side = 'left', pad = 0)
+  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2020, 1, 2), CountyID = substr(tabblk2020, 3, 5),
+                           TractID = substr(tabblk2020, 6, 11), BlockGroupID = substr(tabblk2020, 12, 12),
+                           CensusBlockID = substr(tabblk2020, 13, 15))
+  temp_lookup <- temp_lookup[, c("tabblk2020", "StateID", "stname", "CountyID", "ctyname",
                                  "TractID", "trctname", "BlockGroupID", "bgrpname")]
   colnames(temp_lookup) <- c("Census_Block_Code", "StateID", "StateName", "CountyID", "CountyName",
                              "TractID", "TractName", "BlockGroupID", "BlockGroupName")
@@ -187,7 +196,6 @@ get_rac_data <- function(state_name, year) {
   colnames(df)[1:10] <- c("Census_Block_Code", "StateID", "StateName", "CountyID", "CountyName", "TractID", "TractName",
                           "BlockGroupID", "BlockGroupName", "CensusBlockID")
 
-
   ## Stage Six - Column classes and final tidying
   cols <- df[, 11:50]
   cols <- dplyr::mutate_all(cols, as.numeric)
@@ -196,7 +204,12 @@ get_rac_data <- function(state_name, year) {
   db$StateAbb <- state_name
   db <- db[, c(1:3, 51, 4:50)]
 
-  return(db)
+  if (geometry) {
+    spatial_data <- get_rac_spatial(db)
+    return(spatial_data)
+  } else {
+    return(db)
+  }
 }
 
 
@@ -265,19 +278,19 @@ get_rac_spatial <- function(df) {
 
 ## Function 3. Function for obtaining OD data for one state, one year (e.g. get_od_data("ak", "2013"))
 ### main = T is used to get intra-state flows, main = F is used for inter-state flows
-get_od_data <- function(state_name, year, main = T) {
+get_od_data <- function(state_name, year, main = TRUE, geometry = FALSE) {
 
   # Stage One - Getting OD Data from LODES
-  if(main == T) {
+  if(main == TRUE) {
     dl_file <- paste0(state_name, "_od_main_JT00_", year, ".csv.gz")
-    download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/od/", dl_file), dl_file)
+    download.file(paste0("http://lehd.ces.census.gov/data/lodes8/", state_name, "/od/", dl_file), dl_file)
     R.utils::gunzip(dl_file)
     temp <- data.table::fread(paste0(state_name, "_od_main_JT00_", year, ".csv"))
     rm(dl_file)
-    file.remove(paste0(state_name, "_od_main_JT00_", year, ".csv"))}
-  else{
+    file.remove(paste0(state_name, "_od_main_JT00_", year, ".csv"))
+  } else {
     dl_file <- paste0(state_name, "_od_aux_JT00_", year, ".csv.gz")
-    download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/od/", dl_file), dl_file)
+    download.file(paste0("http://lehd.ces.census.gov/data/lodes8/", state_name, "/od/", dl_file), dl_file)
     R.utils::gunzip(dl_file)
     temp <- data.table::fread(paste0(state_name, "_od_aux_JT00_", year, ".csv"))
     rm(dl_file)
@@ -300,18 +313,18 @@ get_od_data <- function(state_name, year, main = T) {
 
   # Stage Three - Downloading the Lookup
   dl_file_lookup <- paste0(state_name, "_xwalk.csv.gz")
-  download.file(paste0("http://lehd.ces.census.gov/data/lodes/LODES7/", state_name, "/", dl_file_lookup), dl_file_lookup)
+  download.file(paste0("http://lehd.ces.census.gov/data/lodes8/", state_name, "/", dl_file_lookup), dl_file_lookup)
   R.utils::gunzip(dl_file_lookup)
   temp_lookup <- data.table::fread(paste0(state_name, "_xwalk.csv"))
   file.remove(paste0(state_name, "_xwalk.csv"))
 
   # Stage Four - Cleaning the Lookup
-  temp_lookup <- temp_lookup[, c("tabblk2010", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
-  temp_lookup$tabblk2010 <- stringr::str_pad(temp_lookup$tabblk2010, width = 15, side = 'left', pad = 0)
-  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2010, 1, 2), CountyID = substr(tabblk2010, 3, 5),
-                           TractID = substr(tabblk2010, 6, 11), BlockGroupID = substr(tabblk2010, 12, 12),
-                           CensusBlockID = substr(tabblk2010, 13, 15))
-  temp_lookup <- temp_lookup[, c("tabblk2010", "StateID", "stname", "CountyID", "ctyname",
+  temp_lookup <- temp_lookup[, c("tabblk2020", "st", "stname", "cty", "ctyname", "trct", "trctname", "bgrp","bgrpname")]
+  temp_lookup$tabblk2020 <- stringr::str_pad(temp_lookup$tabblk2020, width = 15, side = 'left', pad = 0)
+  temp_lookup <- transform(temp_lookup, StateID = substr(tabblk2020, 1, 2), CountyID = substr(tabblk2020, 3, 5),
+                           TractID = substr(tabblk2020, 6, 11), BlockGroupID = substr(tabblk2020, 12, 12),
+                           CensusBlockID = substr(tabblk2020, 13, 15))
+  temp_lookup <- temp_lookup[, c("tabblk2020", "StateID", "stname", "CountyID", "ctyname",
                                  "TractID", "trctname", "BlockGroupID", "bgrpname")]
   colnames(temp_lookup) <- c("Census_Block_Code", "StateID", "StateName", "CountyID", "CountyName",
                              "TractID", "TractName", "BlockGroupID", "BlockGroupName")
@@ -332,7 +345,13 @@ get_od_data <- function(state_name, year, main = T) {
                    "R_TractID", "R_TractName", "R_BlockGroupID", "R_BlockGroupName", "R_CensusBlockID", "Total_Job_Flows")]
   df$Total_Job_Flows <- as.numeric(as.character(df$Total_Job_Flows))
 
-  return(df)
+  # Stage Six - Downloading Geometry if enabled
+  if (geometry) {
+    spatial_data <- get_od_spatial(df)
+    return(spatial_data)
+  } else {
+    return(df)
+  }
 
 }
 
