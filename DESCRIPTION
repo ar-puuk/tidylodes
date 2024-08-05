@@ -3,6 +3,7 @@ Type: Package
 Title: tidylodes: A package for extracting, processing and 'spatialising' data from the US Census Bureau's LODES database
 Version: 0.1.0
 Author: Patrick Ballantyne <P.J.Ballantyne@liverpool.ac.uk> [aut, cre]
+Maintainer: Pukar Bhandari <pukar.bhandari@outlook.com>
 Description: This package enables users to extract datasets directly from the US Census Bureau's database of Longitudinal
     Origin-Destination Employment Statistics (LODES). The database contains three different datasets - the first two
     Workplace Area Characteristics (WAC) and Residential Area Characteristics (RAC) contain estimates of total jobs and
